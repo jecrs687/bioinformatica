@@ -1,91 +1,117 @@
-import fs from 'fs'
+import fs, { write } from 'fs'
 
-async function readFile() {
-        return new Promise((resolve, refect) => fs.readdir('./', (err, files) => {
-                if (err) reject(err)
-                resolve(files.filter(
-                        file =>
-                                file.endsWith('.txt') &&
-                                file.includes('input_x')
-                ))
-        }))
+function readFile() {
+        const files = fs.readdirSync('./', 'utf8')
+        return files.filter(
+                file =>
+                        file.endsWith('.txt') &&
+                        file.includes('input')
+        )
+
 }
-async function readInput(file) {
-        return new Promise((resolve, reject) => fs.readFile(file, (err, data) => {
-                if (err) reject(err)
-                resolve(data.toString())
-        }))
+function readInput(file) {
+        return fs.readFileSync(file, 'utf8').toString()
 }
-//function to receive a sequence x and a gap and aplly the deBrujin algorithm to get all possible sequences
+function writeOutput(text, fileName) {
+        return fs.writeFileSync(fileName, text, 'utf8')
+}
+class Kmer {
+        constructor(kmer, index, gap) {
+                this.kmer = kmer
+                this.prefix = kmer.slice(0, kmer.length - gap)
+                this.suffix = kmer.slice(gap)
+                this.next = []
+                this.back = []
+                this.equal = []
+                this.index = index
+                this.initial = 0
+                this.final = 0
+                this.used = 0
+                this.isLoop = this.prefix === this.suffix
+        }
+        getNeighbors(kmers) {
+                kmers.forEach(({ prefix, suffix, index }) => {
+                        if (index === this.index) return;
+                        if (this.prefix === suffix && this.suffix === prefix) {
+                                this.equal.push(index)
+                        } else {
+                                if (this.prefix === suffix) {
+                                        this.next.push(index)
+                                }
+                                if (this.suffix === prefix) {
+                                        this.back.push(index)
+                                }
+                        }
+                })
+                this.back = this.back.sort(({ isLoop }) => isLoop ? 1 : -1)
+                this.next = this.next.sort(({ isLoop }) => isLoop ? 1 : -1)
+                return !this.back.length ? this.initial = 1 : !this.next.length ? this.final = 1 : 0
+        }
+        getNext() {
+                return this.next.shift()
+        }
+        getEqual() {
+                return this.equal.shift()
+        }
+}
+
 function deBrujin(kmers, gap) {
-        let graphNext = {}
-        let graphBack = {}
-        let result = []
-        let possibilities = new Set()
-        //create the graph
-        // const counter = kmers.reduce((acc, value) => {
-        //         if (acc.hasOwnProperty(value)) {
-        //                 acc[value]++
-        //         } else {
-        //                 acc[value] = 1
-        //         }
-        //         return acc;
-        // }, {})
-
-
-        for (let i = 0; i < kmers.length; i++) {
-                let kmer = kmers[i]
-                let prefix = kmer.substring(0, kmer.length - gap)
-                let suffix = kmer.substring(gap)
-                possibilities.add(suffix)
-                possibilities.add(prefix)
-                if (graphNext[prefix]) {
-                        graphNext[prefix].push(suffix)
-                } else {
-                        graphNext[prefix] = [suffix]
-                }
-                if (graphBack[suffix]) {
-                        graphBack[suffix].push(prefix)
-                } else {
-                        graphBack[suffix] = [prefix]
+        const edges = []
+        const nodes = []
+        for (let [index, value] of kmers.entries()) {
+                if (value) {
+                        const node = new Kmer(value, index, gap)
+                        nodes.push(node)
                 }
         }
-        const matrix = Array.from(possibilities.keys())
-        console.log({ possibilities, matrix })
-
-        for (let i = Object.keys(graphNext)[0]; graphNext[i];) {
-                let suffix = graphNext[i].pop();
-                var isEqual = graphNext[i].findIndex((value) => value === i);
-                while (isEqual != undefined && isEqual != -1) {
-                        graphNext[i].splice(isEqual, 1)
-                        result.push(i)
-                        isEqual = graphNext[i].findIndex((value) => value === i)
+        nodes.forEach(kmer => kmer.getNeighbors(nodes) ? edges.push(kmer) : 0)
+        const [initial, final] = edges.sort(({ final }) => final - 1)
+        const solution = []
+        let current = initial
+        while (current) {
+                solution.push(current.kmer)
+                current.used = 1
+                if (current.equal.length) {
+                        current = nodes[current.getEqual()]
+                } else if (current.next.length) {
+                        current = nodes[current.getNext()]
+                } else {
+                        current = null
                 }
-                if (suffix)
-                        result.push(i)
-                i = suffix;
         }
-
-        console.log({ graphNext, result, graphBack })
-
-        return result.reduce((acc, value, index) => index != 0 ? acc + value.at(-1) : acc, result[0])
+        const result = solution
+                .reverse()
+                .map(
+                        (value, index) =>
+                                index === 0 ?
+                                        value :
+                                        value.slice(-1)
+                )
+                .join('')
+        console.log({ solution: solution.length, kmers: nodes.length, last: solution[solution.length - 1] === final.kmer })
+        return result
 }
 
 
 
 
 function main() {
-        readFile().then(files => {
-                Promise.all(files.map(readInput)).then(inputs => {
-                        const arraysOfKmers = inputs.map((value) => value.split(','))
-                        const results = arraysOfKmers.map((value, index) => {
-                                console.log("_____________________________")
-                                return deBrujin(value, 1)
-                        })
-                        console.log({ results })
-                })
-        }
-        );
+        const files = readFile().reverse()
+        const inputs = files.map(readInput)
+        const arraysOfKmers = inputs.map((value) => value.split(','))
+        const results = arraysOfKmers.map((value, index) => {
+                console.log("\n_____________________________\n", "file:",
+                        files[index], "\n_____________________________\n")
+
+                console.time(`${files[index]} - Tempo de execução`)
+                const result = deBrujin(value, 1)
+                console.timeEnd(`${files[index]} - Tempo de execução`)
+                console.log({ result })
+                writeOutput(result, `output${index + 1}.txt`)
+                return result
+
+        })
+        console.log({ results })
 }
 
 main();
