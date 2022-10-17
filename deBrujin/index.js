@@ -88,7 +88,7 @@ function deBrujin(kmers, gap) {
                                         value.slice(-1)
                 )
                 .join('')
-        console.log({ solution: solution.length, kmers: nodes.length, last: solution[solution.length - 1] === final.kmer })
+        console.log({ solution: solution.length, nodes: nodes.length, last: solution[solution.length - 1] === final.kmer })
         return result
 }
 
@@ -96,22 +96,22 @@ function deBrujin(kmers, gap) {
 
 
 function main() {
-        const files = readFile().reverse()
-        const inputs = files.map(readInput)
+        const files = process.argv.slice(2).map((value) => value.endsWith('.txt') ? value : value + '.txt')
+        const inputs = files?.map(readInput)
         const arraysOfKmers = inputs.map((value) => value.split(','))
         const results = arraysOfKmers.map((value, index) => {
                 console.log("\n_____________________________\n", "file:",
                         files[index], "\n_____________________________\n")
 
-                console.time(`${files[index]} - Tempo de execução`)
+                console.time(`\n${files[index]} - Tempo de execução`)
                 const result = deBrujin(value, 1)
-                console.timeEnd(`${files[index]} - Tempo de execução`)
-                console.log({ result })
-                writeOutput(result, `output${index + 1}.txt`)
+                console.timeEnd(`\n${files[index]} - Tempo de execução`)
+                const number = files.length > 1 ? index + 1 : ''
+                writeOutput(result, `output${number}.txt`)
+                console.log("\nResultado:", `output${number}.txt`)
                 return result
 
         })
-        console.log({ results })
 }
 
 main();
