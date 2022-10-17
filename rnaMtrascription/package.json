@@ -1,0 +1,13 @@
+{
+  "name": "rnamtrascription",
+  "version": "0.0.1",
+  "description": "program to transcreption of dna to rnaM",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "npx nodemon .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "jecrs687",
+  "license": "ISC"
+}
